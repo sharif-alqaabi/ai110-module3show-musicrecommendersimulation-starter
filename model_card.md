@@ -5,6 +5,8 @@
 Give your model a short, descriptive name.  
 Example: **VibeFinder 1.0**  
 
+**VibeMatch 1.0**
+
 ---
 
 ## 2. Intended Use  
@@ -16,6 +18,12 @@ Prompts:
 - What kind of recommendations does it generate  
 - What assumptions does it make about the user  
 - Is this for real users or classroom exploration  
+
+This recommender suggests songs from a small classroom music catalog based on a user's preferred genre, mood, energy, and acoustic feel. It assumes that a user's taste can be described with a few simple preferences and that songs with similar features will feel like good matches. This project is for classroom exploration, not for real users or real streaming decisions.
+
+Intended use: learning how recommendation systems score and rank items in a simple, transparent way.
+
+Non-intended use: real music product recommendations, high-stakes decisions, or representing a person's full music taste.
 
 ---
 
@@ -32,6 +40,8 @@ Prompts:
 
 Avoid code here. Pretend you are explaining the idea to a friend who does not program.
 
+My model looks at each song's genre, mood, energy, danceability, acousticness, tempo, and valence. It also looks at the user's target preferences for those same kinds of features. The system gives the biggest points for matching genre and mood, then gives smaller points when the song's numbers are close to the user's target values. After that, it ranks all songs by total score and recommends the top results. Compared with the starter logic, I added more features, explanation reasons, and a clearer scoring recipe.
+
 ---
 
 ## 4. Data  
@@ -45,6 +55,8 @@ Prompts:
 - Did you add or remove data  
 - Are there parts of musical taste missing in the dataset  
 
+The dataset has 18 songs. I started with the 10-song starter file and added 8 more songs to make the catalog more diverse. The features include `genre`, `mood`, `energy`, `tempo_bpm`, `valence`, `danceability`, and `acousticness`. The catalog covers styles like pop, lofi, rock, ambient, jazz, synthwave, EDM, folk, R&B, metal, country, disco, hip hop, and classical. Even with that expansion, the dataset is still very small and misses many important parts of music taste, like lyrics, language, culture, context, and repeated listening habits.
+
 ---
 
 ## 5. Strengths  
@@ -56,6 +68,8 @@ Prompts:
 - User types for which it gives reasonable results  
 - Any patterns you think your scoring captures correctly  
 - Cases where the recommendations matched your intuition  
+
+This system works best when the user's preferences are clear and consistent. It did a good job with profiles like Chill Lofi and Deep Intense Rock because the top recommendations matched the expected vibe very closely. The scoring also captures an important real pattern: songs feel more relevant when categorical features like genre and mood line up with continuous features like energy. I also like that the system is easy to explain because every recommendation comes with reasons.
 
 ---
 
@@ -102,6 +116,8 @@ Prompts:
 - Improving diversity among the top results  
 - Handling more complex user tastes  
 
+If I kept developing this model, I would add more songs so the recommender had better variety and less risk of narrow results. I would also improve diversity so the top 5 list does not feel too repetitive when one feature dominates. Another improvement would be to support more complex users, such as people who like different music for studying, workouts, and relaxing. I would also like to add better explanations that summarize the main vibe instead of listing every small score component.
+
 ---
 
 ## 9. Personal Reflection  
@@ -113,3 +129,5 @@ Prompts:
 - What you learned about recommender systems  
 - Something unexpected or interesting you discovered  
 - How this changed the way you think about music recommendation apps  
+
+My biggest learning moment was seeing how much the final ranking changes when just one weight changes. A small scoring rule can create very different recommendation behavior. AI tools helped me move faster when I was planning profiles, writing scoring logic, and checking for edge cases, but I still had to double-check the outputs because the tool could suggest ideas that sounded reasonable without matching the assignment exactly. What surprised me most is that even a simple rules-based system can still feel like it "understands" music taste when the inputs are chosen well. If I extended this project, I would try adding user history, diversity rules, and a way to compare collaborative filtering with my current content-based approach.
