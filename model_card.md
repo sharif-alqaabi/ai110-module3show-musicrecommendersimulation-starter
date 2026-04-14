@@ -70,6 +70,8 @@ Prompts:
 - Cases where the system overfits to one preference  
 - Ways the scoring might unintentionally favor some users  
 
+One weakness I found is that the system can over-reward a single exact category match, especially for `genre`, even when the rest of the song does not fully match the listener's intent. The "Conflicted Edge Case" profile showed this clearly: `Quiet Constellations` ranked first mostly because it matched `classical`, even though its energy level was far away from the requested 0.92 target. The small dataset also creates a filter-bubble effect because some genres only have one or two examples, so the recommender has very few alternatives to compare. Another limitation is that the model does not understand lyrics, context, or changing moods across the day, so it treats music taste as a fixed set of numbers instead of something flexible. This means the system may feel more accurate for common profiles like pop, lofi, or rock than for unusual or mixed preferences.
+
 ---
 
 ## 7. Evaluation  
@@ -84,6 +86,8 @@ Prompts:
 - Any simple tests or comparisons you ran  
 
 No need for numeric metrics unless you created some.
+
+I evaluated the recommender with four profiles: High-Energy Pop, Chill Lofi, Deep Intense Rock, and a Conflicted Edge Case profile that combined `classical`, `moody`, and very high energy. I looked at the top 5 songs for each profile and checked whether the results matched my musical intuition based on genre, mood, energy, and acousticness. The strongest results were for the Chill Lofi and Deep Intense Rock profiles, where the top song clearly matched the intended vibe: `Library Rain` for lofi and `Storm Runner` for rock. What surprised me most was the edge case profile, because the system still ranked a classical song first even though its energy was a poor match, which showed that exact category weights can dominate the final ranking. I also ran a weight-shift experiment where energy importance was doubled and genre importance was cut in half, and that change pushed `Rooftop Lights` above `Gym Hero` for the pop profile, showing that the recommender is sensitive to the balance between category matches and numerical similarity.
 
 ---
 

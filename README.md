@@ -286,3 +286,7 @@ A few sentences about what you learned:
 ## Screenshots
 
 ![alt text](<Screenshot 2026-04-14 at 12.19.00 PM.png>)
+![alt text](<Screenshot 2026-04-14 at 12.35.39 PM.png>) 
+![alt text](<Screenshot 2026-04-14 at 12.35.28 PM.png>) 
+![alt text](<Screenshot 2026-04-14 at 12.35.21 PM.png>) 
+![alt text](<Screenshot 2026-04-14 at 12.35.10 PM.png>)

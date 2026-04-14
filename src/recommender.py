@@ -2,6 +2,16 @@ import csv
 from typing import List, Dict, Tuple
 from dataclasses import dataclass
 
+DEFAULT_WEIGHTS = {
+    "genre": 2.0,
+    "mood": 1.5,
+    "energy": 1.5,
+    "danceability": 0.75,
+    "acousticness": 0.5,
+    "tempo_bpm": 0.25,
+    "valence": 0.25,
+}
+
 @dataclass
 class Song:
     """
@@ -102,49 +112,61 @@ def load_songs(csv_path: str) -> List[Dict]:
 
 def score_song(user_prefs: Dict, song: Dict) -> Tuple[float, List[str]]:
     """Score one song against user preferences and explain the main contributors."""
+    return score_song_with_config(user_prefs, song)
+
+def score_song_with_config(
+    user_prefs: Dict,
+    song: Dict,
+    weights: Dict[str, float] | None = None,
+    use_mood: bool = True,
+) -> Tuple[float, List[str]]:
+    """Score one song with configurable weights for evaluation experiments."""
+    weights = weights or DEFAULT_WEIGHTS
     score = 0.0
     reasons: List[str] = []
 
     if song["genre"] == user_prefs.get("genre"):
-        score += 2.0
-        reasons.append("genre match (+2.0)")
+        genre_points = weights["genre"]
+        score += genre_points
+        reasons.append(f"genre match (+{genre_points:.2f})")
 
-    if song["mood"] == user_prefs.get("mood"):
-        score += 1.5
-        reasons.append("mood match (+1.5)")
+    if use_mood and song["mood"] == user_prefs.get("mood"):
+        mood_points = weights["mood"]
+        score += mood_points
+        reasons.append(f"mood match (+{mood_points:.2f})")
 
     target_energy = user_prefs.get("energy")
     if target_energy is not None:
         energy_similarity = max(0.0, 1 - abs(song["energy"] - target_energy))
-        energy_points = round(energy_similarity * 1.5, 2)
+        energy_points = round(energy_similarity * weights["energy"], 2)
         score += energy_points
         reasons.append(f"energy similarity (+{energy_points:.2f})")
 
     target_danceability = user_prefs.get("danceability", target_energy)
     if target_danceability is not None:
         dance_similarity = max(0.0, 1 - abs(song["danceability"] - target_danceability))
-        dance_points = round(dance_similarity * 0.75, 2)
+        dance_points = round(dance_similarity * weights["danceability"], 2)
         score += dance_points
         reasons.append(f"danceability similarity (+{dance_points:.2f})")
 
     likes_acoustic = user_prefs.get("likes_acoustic")
     if likes_acoustic is not None:
         acoustic_match = song["acousticness"] if likes_acoustic else 1 - song["acousticness"]
-        acoustic_points = round(acoustic_match * 0.5, 2)
+        acoustic_points = round(acoustic_match * weights["acousticness"], 2)
         score += acoustic_points
         reasons.append(f"acoustic fit (+{acoustic_points:.2f})")
 
     target_tempo = user_prefs.get("tempo_bpm")
     if target_tempo is not None:
         tempo_similarity = max(0.0, 1 - (abs(song["tempo_bpm"] - target_tempo) / 100))
-        tempo_points = round(tempo_similarity * 0.25, 2)
+        tempo_points = round(tempo_similarity * weights["tempo_bpm"], 2)
         score += tempo_points
         reasons.append(f"tempo similarity (+{tempo_points:.2f})")
 
     target_valence = user_prefs.get("valence")
     if target_valence is not None:
         valence_similarity = max(0.0, 1 - abs(song["valence"] - target_valence))
-        valence_points = round(valence_similarity * 0.25, 2)
+        valence_points = round(valence_similarity * weights["valence"], 2)
         score += valence_points
         reasons.append(f"valence similarity (+{valence_points:.2f})")
 
@@ -152,10 +174,25 @@ def score_song(user_prefs: Dict, song: Dict) -> Tuple[float, List[str]]:
 
 def recommend_songs(user_prefs: Dict, songs: List[Dict], k: int = 5) -> List[Tuple[Dict, float, str]]:
     """Score, rank, and return the top-k songs with short explanations."""
+    return recommend_songs_with_config(user_prefs, songs, k=k)
+
+def recommend_songs_with_config(
+    user_prefs: Dict,
+    songs: List[Dict],
+    k: int = 5,
+    weights: Dict[str, float] | None = None,
+    use_mood: bool = True,
+) -> List[Tuple[Dict, float, str]]:
+    """Rank songs with configurable scoring settings for experiments."""
     scored_songs: List[Tuple[Dict, float, str]] = []
 
     for song in songs:
-        score, reasons = score_song(user_prefs, song)
+        score, reasons = score_song_with_config(
+            user_prefs,
+            song,
+            weights=weights,
+            use_mood=use_mood,
+        )
         explanation = ", ".join(reasons)
         scored_songs.append((song, score, explanation))
 
