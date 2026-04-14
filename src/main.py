@@ -9,7 +9,14 @@ You will implement the functions in recommender.py:
 - recommend_songs
 """
 
-from src.recommender import DEFAULT_WEIGHTS, load_songs, recommend_songs, recommend_songs_with_config
+from src.recommender import (
+    DEFAULT_WEIGHTS,
+    SCORING_MODES,
+    load_songs,
+    recommend_songs,
+    recommend_songs_by_mode,
+    recommend_songs_with_config,
+)
 
 PROFILE_LIBRARY = {
     "High-Energy Pop": {
@@ -56,6 +63,12 @@ EXPERIMENTAL_WEIGHTS = {
     "energy": 3.0,
 }
 
+PROFILE_MODE_DEMOS = [
+    ("High-Energy Pop", "genre-first"),
+    ("Chill Lofi", "mood-first"),
+    ("Deep Intense Rock", "energy-focused"),
+]
+
 
 def print_recommendations(title: str, recommendations: list[tuple[dict, float, str]]) -> None:
     """Print a readable block of recommendations for one profile."""
@@ -94,6 +107,16 @@ def run_experiment(profile_name: str, user_prefs: dict, songs: list[dict]) -> No
     print_recommendations("Experimental Top 5", experiment)
 
 
+def run_mode_demo(profile_name: str, mode_name: str, user_prefs: dict, songs: list[dict]) -> None:
+    """Show how a named scoring mode changes the ranking strategy."""
+    mode = SCORING_MODES[mode_name]
+    recommendations = recommend_songs_by_mode(user_prefs, songs, mode_name=mode_name, k=5)
+    print(f"\n=== {mode_name.title()} Mode ===")
+    print(f"Profile tested: {profile_name}")
+    print(f"Strategy: {mode['description']}")
+    print_recommendations(f"{profile_name} ({mode_name})", recommendations)
+
+
 def main() -> None:
     songs = load_songs("data/songs.csv")
     print(f"Loaded songs: {len(songs)}")
@@ -102,6 +125,9 @@ def main() -> None:
         run_profile(name, user_prefs, songs)
 
     run_experiment("High-Energy Pop", PROFILE_LIBRARY["High-Energy Pop"], songs)
+
+    for profile_name, mode_name in PROFILE_MODE_DEMOS:
+        run_mode_demo(profile_name, mode_name, PROFILE_LIBRARY[profile_name], songs)
 
 
 if __name__ == "__main__":

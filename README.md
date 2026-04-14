@@ -148,6 +148,8 @@ Use this section to document the experiments you ran. For example:
 
 I tested the recommender with four profiles: High-Energy Pop, Chill Lofi, Deep Intense Rock, and a Conflicted Edge Case profile. The strongest matches were Chill Lofi and Deep Intense Rock because the top songs clearly fit the intended style and mood. I also ran a weight-shift experiment where energy mattered more and genre mattered less. That change moved `Rooftop Lights` above `Gym Hero` for the pop profile, which showed that the ranking is very sensitive to the balance between exact category matches and numerical similarity.
 
+As extra challenges, I extended the project in three ways. First, I added advanced song features like `popularity`, `release_decade`, `detailed_mood_tag`, `instrumentalness`, `liveliness`, and `lyric_density`, then updated the scoring logic to compare those values with math-based similarity rules. Second, I created multiple scoring modes such as `genre-first`, `mood-first`, and `energy-focused` so the user can switch between different ranking strategies. Third, I added a diversity penalty that lowers a song's score if its artist or genre is already overrepresented in the top recommendations, which helps the final list feel more varied and fair.
+
 ---
 
 ## Limitations and Risks

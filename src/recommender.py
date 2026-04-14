@@ -10,6 +10,55 @@ DEFAULT_WEIGHTS = {
     "acousticness": 0.5,
     "tempo_bpm": 0.25,
     "valence": 0.25,
+    "popularity": 0.35,
+    "release_decade": 0.5,
+    "detailed_mood_tag": 1.0,
+    "instrumentalness": 0.35,
+    "liveliness": 0.35,
+    "lyric_density": 0.35,
+}
+
+SCORING_MODES = {
+    "balanced": {
+        "description": "Default mode that balances genre, mood, and audio similarity.",
+        "weights": DEFAULT_WEIGHTS,
+        "use_mood": True,
+    },
+    "genre-first": {
+        "description": "Prioritizes exact genre matches before other signals.",
+        "weights": {
+            **DEFAULT_WEIGHTS,
+            "genre": 3.5,
+            "mood": 1.0,
+            "energy": 1.2,
+            "detailed_mood_tag": 0.8,
+        },
+        "use_mood": True,
+    },
+    "mood-first": {
+        "description": "Prioritizes emotional fit and detailed mood over genre.",
+        "weights": {
+            **DEFAULT_WEIGHTS,
+            "genre": 1.0,
+            "mood": 2.75,
+            "valence": 0.5,
+            "detailed_mood_tag": 1.5,
+        },
+        "use_mood": True,
+    },
+    "energy-focused": {
+        "description": "Pushes high similarity on energy and nearby audio intensity.",
+        "weights": {
+            **DEFAULT_WEIGHTS,
+            "genre": 1.0,
+            "mood": 1.0,
+            "energy": 3.0,
+            "danceability": 1.0,
+            "liveliness": 0.6,
+            "tempo_bpm": 0.4,
+        },
+        "use_mood": True,
+    },
 }
 
 @dataclass
@@ -28,6 +77,12 @@ class Song:
     valence: float
     danceability: float
     acousticness: float
+    popularity: int = 0
+    release_decade: int = 0
+    detailed_mood_tag: str = ""
+    instrumentalness: float = 0.0
+    liveliness: float = 0.0
+    lyric_density: float = 0.0
 
 @dataclass
 class UserProfile:
@@ -39,6 +94,12 @@ class UserProfile:
     favorite_mood: str
     target_energy: float
     likes_acoustic: bool
+    preferred_popularity: int | None = None
+    preferred_release_decade: int | None = None
+    preferred_detailed_mood_tag: str | None = None
+    target_instrumentalness: float | None = None
+    target_liveliness: float | None = None
+    target_lyric_density: float | None = None
 
 class Recommender:
     """
@@ -74,6 +135,12 @@ class Recommender:
             "mood": user.favorite_mood,
             "energy": user.target_energy,
             "likes_acoustic": user.likes_acoustic,
+            "preferred_popularity": user.preferred_popularity,
+            "preferred_release_decade": user.preferred_release_decade,
+            "preferred_detailed_mood_tag": user.preferred_detailed_mood_tag,
+            "target_instrumentalness": user.target_instrumentalness,
+            "target_liveliness": user.target_liveliness,
+            "target_lyric_density": user.target_lyric_density,
         }
         song_dict = {
             "genre": song.genre,
@@ -83,17 +150,73 @@ class Recommender:
             "valence": song.valence,
             "danceability": song.danceability,
             "acousticness": song.acousticness,
+            "popularity": song.popularity,
+            "release_decade": song.release_decade,
+            "detailed_mood_tag": song.detailed_mood_tag,
+            "instrumentalness": song.instrumentalness,
+            "liveliness": song.liveliness,
+            "lyric_density": song.lyric_density,
         }
         score, reasons = score_song(user_prefs, song_dict)
         if return_reasons:
             return score, reasons
         return score
 
+
+def _first_pref(user_prefs: Dict, *keys: str):
+    """Return the first non-None preference value from a list of possible keys."""
+    for key in keys:
+        value = user_prefs.get(key)
+        if value is not None:
+            return value
+    return None
+
+
+def get_scoring_mode(mode_name: str = "balanced") -> Dict:
+    """Return a named scoring mode configuration."""
+    mode_key = mode_name.strip().lower()
+    return SCORING_MODES.get(mode_key, SCORING_MODES["balanced"])
+
+
+def apply_diversity_penalty(
+    song: Dict,
+    base_score: float,
+    selected_songs: List[Dict],
+    artist_penalty: float = 0.9,
+    genre_penalty: float = 0.45,
+) -> Tuple[float, List[str]]:
+    """Reduce repeated artists or genres while building the final ranked list."""
+    adjusted_score = base_score
+    penalties: List[str] = []
+
+    selected_artists = {selected_song["artist"] for selected_song in selected_songs}
+    selected_genres = {selected_song["genre"] for selected_song in selected_songs}
+
+    if song["artist"] in selected_artists:
+        adjusted_score -= artist_penalty
+        penalties.append(f"artist diversity penalty (-{artist_penalty:.2f})")
+
+    if song["genre"] in selected_genres:
+        adjusted_score -= genre_penalty
+        penalties.append(f"genre diversity penalty (-{genre_penalty:.2f})")
+
+    return round(adjusted_score, 2), penalties
+
 def load_songs(csv_path: str) -> List[Dict]:
     """Load songs from CSV and convert numeric fields into math-friendly types."""
     songs: List[Dict] = []
     int_fields = {"id"}
-    float_fields = {"energy", "tempo_bpm", "valence", "danceability", "acousticness"}
+    float_fields = {
+        "energy",
+        "tempo_bpm",
+        "valence",
+        "danceability",
+        "acousticness",
+        "instrumentalness",
+        "liveliness",
+        "lyric_density",
+    }
+    int_fields = int_fields | {"popularity", "release_decade"}
 
     with open(csv_path, newline="", encoding="utf-8") as csv_file:
         reader = csv.DictReader(csv_file)
@@ -121,7 +244,7 @@ def score_song_with_config(
     use_mood: bool = True,
 ) -> Tuple[float, List[str]]:
     """Score one song with configurable weights for evaluation experiments."""
-    weights = weights or DEFAULT_WEIGHTS
+    weights = {**DEFAULT_WEIGHTS, **(weights or {})}
     score = 0.0
     reasons: List[str] = []
 
@@ -170,6 +293,62 @@ def score_song_with_config(
         score += valence_points
         reasons.append(f"valence similarity (+{valence_points:.2f})")
 
+    preferred_popularity = _first_pref(user_prefs, "preferred_popularity", "popularity_target", "popularity")
+    if preferred_popularity is not None and "popularity" in song:
+        popularity_similarity = max(
+            0.0,
+            1 - (abs(float(song["popularity"]) - float(preferred_popularity)) / 100),
+        )
+        popularity_points = round(popularity_similarity * weights["popularity"], 2)
+        score += popularity_points
+        reasons.append(f"popularity fit (+{popularity_points:.2f})")
+
+    preferred_release_decade = _first_pref(
+        user_prefs,
+        "preferred_release_decade",
+        "release_decade",
+    )
+    if preferred_release_decade is not None and "release_decade" in song:
+        decade_gap = abs(int(song["release_decade"]) - int(preferred_release_decade))
+        release_similarity = max(0.0, 1 - (decade_gap / 40))
+        release_points = round(release_similarity * weights["release_decade"], 2)
+        score += release_points
+        reasons.append(f"release decade fit (+{release_points:.2f})")
+
+    preferred_detailed_mood = _first_pref(
+        user_prefs,
+        "preferred_detailed_mood_tag",
+        "detailed_mood_tag",
+    )
+    if preferred_detailed_mood is not None:
+        song_detailed_mood = str(song.get("detailed_mood_tag", "")).strip().lower()
+        preferred_detailed_mood = str(preferred_detailed_mood).strip().lower()
+        if song_detailed_mood and song_detailed_mood == preferred_detailed_mood:
+            detailed_mood_points = weights["detailed_mood_tag"]
+            score += detailed_mood_points
+            reasons.append(f"detailed mood match (+{detailed_mood_points:.2f})")
+
+    target_instrumentalness = _first_pref(user_prefs, "target_instrumentalness", "instrumentalness")
+    if target_instrumentalness is not None and "instrumentalness" in song:
+        instrumental_similarity = max(0.0, 1 - abs(song["instrumentalness"] - target_instrumentalness))
+        instrumental_points = round(instrumental_similarity * weights["instrumentalness"], 2)
+        score += instrumental_points
+        reasons.append(f"instrumentalness similarity (+{instrumental_points:.2f})")
+
+    target_liveliness = _first_pref(user_prefs, "target_liveliness", "liveliness")
+    if target_liveliness is not None and "liveliness" in song:
+        liveliness_similarity = max(0.0, 1 - abs(song["liveliness"] - target_liveliness))
+        liveliness_points = round(liveliness_similarity * weights["liveliness"], 2)
+        score += liveliness_points
+        reasons.append(f"liveliness similarity (+{liveliness_points:.2f})")
+
+    target_lyric_density = _first_pref(user_prefs, "target_lyric_density", "lyric_density")
+    if target_lyric_density is not None and "lyric_density" in song:
+        lyric_similarity = max(0.0, 1 - abs(song["lyric_density"] - target_lyric_density))
+        lyric_points = round(lyric_similarity * weights["lyric_density"], 2)
+        score += lyric_points
+        reasons.append(f"lyric density similarity (+{lyric_points:.2f})")
+
     return round(score, 2), reasons
 
 def recommend_songs(user_prefs: Dict, songs: List[Dict], k: int = 5) -> List[Tuple[Dict, float, str]]:
@@ -184,7 +363,7 @@ def recommend_songs_with_config(
     use_mood: bool = True,
 ) -> List[Tuple[Dict, float, str]]:
     """Rank songs with configurable scoring settings for experiments."""
-    scored_songs: List[Tuple[Dict, float, str]] = []
+    scored_songs: List[Tuple[Dict, float, List[str]]] = []
 
     for song in songs:
         score, reasons = score_song_with_config(
@@ -193,8 +372,48 @@ def recommend_songs_with_config(
             weights=weights,
             use_mood=use_mood,
         )
-        explanation = ", ".join(reasons)
-        scored_songs.append((song, score, explanation))
+        scored_songs.append((song, score, reasons))
 
-    ranked_songs = sorted(scored_songs, key=lambda item: item[1], reverse=True)
-    return ranked_songs[:k]
+    remaining_songs = sorted(scored_songs, key=lambda item: item[1], reverse=True)
+    reranked_results: List[Tuple[Dict, float, str]] = []
+    selected_song_dicts: List[Dict] = []
+
+    while remaining_songs and len(reranked_results) < k:
+        best_index = 0
+        best_candidate: Tuple[Dict, float, List[str]] | None = None
+        best_adjusted_score = float("-inf")
+        best_reasons: List[str] = []
+
+        for index, (song, base_score, reasons) in enumerate(remaining_songs):
+            adjusted_score, penalty_reasons = apply_diversity_penalty(song, base_score, selected_song_dicts)
+            if adjusted_score > best_adjusted_score:
+                best_index = index
+                best_candidate = (song, adjusted_score, reasons)
+                best_adjusted_score = adjusted_score
+                best_reasons = penalty_reasons
+
+        assert best_candidate is not None
+        song, adjusted_score, reasons = best_candidate
+        explanation_parts = reasons + best_reasons if best_reasons else reasons
+        reranked_results.append((song, adjusted_score, ", ".join(explanation_parts)))
+        selected_song_dicts.append(song)
+        remaining_songs.pop(best_index)
+
+    return reranked_results
+
+
+def recommend_songs_by_mode(
+    user_prefs: Dict,
+    songs: List[Dict],
+    mode_name: str = "balanced",
+    k: int = 5,
+) -> List[Tuple[Dict, float, str]]:
+    """Rank songs using one of the named scoring strategies."""
+    mode = get_scoring_mode(mode_name)
+    return recommend_songs_with_config(
+        user_prefs,
+        songs,
+        k=k,
+        weights=mode["weights"],
+        use_mood=mode["use_mood"],
+    )
